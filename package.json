@@ -1,0 +1,20 @@
+{
+  "name": "sp",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "discord.js": "^11.3.0",
+    "sqlite": "^2.9.1",
+    "sqlite3": "^3.1.13",
+    "url": "^0.11.0",
+    "ws": "^4.0.0",
+    "xml2js": "^0.4.19"
+  }
+}
