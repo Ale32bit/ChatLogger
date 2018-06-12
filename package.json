@@ -11,6 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "discord.js": "^11.3.0",
+    "mc-ping-updated": "^0.1.0",
     "sqlite": "^2.9.1",
     "sqlite3": "^3.1.13",
     "url": "^0.11.0",
