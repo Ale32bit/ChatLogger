@@ -5,8 +5,9 @@
  * Full license: https://github.com/Ale32bit/ChatLogger/blob/master/LICENSE
  */
 
-const WebSocket = require("ws");
-const http = require('http');
+const express = require("express");
+const app = express();
+const expressWs = require("express-ws")(app);
 const sqlite = require("sqlite");
 const fs = require("fs");
 const stdin = process.openStdin();
@@ -250,11 +251,7 @@ var convertData = function(event,data,timestamp){
     console.log(messages.length)
 })();
 
-var httpsServer = http.createServer(/*{
-    key: fs.readFileSync('/etc/letsencrypt/live/pi.ale32bit.me/privkey.pem','utf8'),
-    cert: fs.readFileSync('/etc/letsencrypt/live/pi.ale32bit.me/cert.pem','utf8'),
-    ca: fs.readFileSync('/etc/letsencrypt/live/pi.ale32bit.me/chain.pem','utf8'),
-},*/(req,res)=>{
+app.use("/json",function(req,res){
     console.log("Received http request: "+req.connection.remoteAddress);
     var output = [];
     var limit = defLoad;
@@ -280,12 +277,10 @@ var httpsServer = http.createServer(/*{
     res.write(JSON.stringify(output)); //write a response to the client
     res.end(); //end the response
 });
-httpsServer.listen(port);
 
-var WebSocketServer = WebSocket.Server;
-var wss = new WebSocketServer({
-    server: httpsServer
-});
+app.use(express.static("./public"));
+
+let wss = expressWs.getWss();
 
 wss.getUniqueID = function () {
     function s4() {
@@ -331,7 +326,7 @@ const fireEvent = function(event, objArgs){
     objArgs.type = "event";
 
     wss.clients.forEach(function each(client){
-        if(isSubscribed(client.id, event) && client.readyState === WebSocket.OPEN){
+        if(isSubscribed(client.id, event) && client.readyState === 1){
             objArgs.uuid = client.id;
             client.send(JSON.stringify(objArgs),()=>{});
         }
@@ -349,7 +344,7 @@ const tellSlaves = function(event,objArgs){
     objArgs.type = "event";
 
     wss.clients.forEach(function each(client){
-        if(CLIENTS[client.id].slave && client.readyState === WebSocket.OPEN){
+        if(CLIENTS[client.id].slave && client.readyState === 1){
             objArgs.uuid = client.id;
             client.send(JSON.stringify(objArgs),()=>{});
         }
@@ -473,9 +468,9 @@ const clCommands = {
     }
 };
 
-wss.on('connection', function connection(ws,req) {
-
+app.ws("/", function connection(ws,req) {
     ws.id = wss.getUniqueID();
+
 
     CLIENTS[ws.id] = {};
     CLIENTS[ws.id].slave = false;
@@ -487,7 +482,7 @@ wss.on('connection', function connection(ws,req) {
         ws.send(JSON.stringify({type:"ping",timestamp:Math.floor(new Date() / 1000)}), function () { /* ignore errors */ });
         ratelimit[ws.id] = 0;
     }, 10000);
-    ws.ip = req.headers['x-forwarded-for'].split(/\s*,\s*/)[0];
+    ws.ip = req.ip || req.headers['x-forwarded-for'].split(/\s*,\s*/)[0];
     console.log('started client interval. ID '+ws.id+". "+ws.ip);
 
     ws.on('error', (error) => {
@@ -495,7 +490,7 @@ wss.on('connection', function connection(ws,req) {
         console.error(error);
     });
 
-    ws.on('message', async function incoming(message,req) {
+    ws.on('message', async function(message,req) {
         if(!CLIENTS[ws.id].slave){
             ratelimit[ws.id]++;
             if(ratelimit[ws.id] > 100){
@@ -838,6 +833,10 @@ wss.on('connection', function connection(ws,req) {
     });
     ws.send(JSON.stringify({type:"motd",motd:"Welcome to the SwitchCraft ChatLogger server! (c) 2018 Ale32bit",uuid:ws.id}));
 });
+
+console.log(config.port);
+
+app.listen(config.port);
 
 /*client.on("message",message=>{
     if(message.channel.id === channelID && message.author.id !== client.user.id){
